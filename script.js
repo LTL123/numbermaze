@@ -129,8 +129,9 @@ class NumberMaze {
                 bestPath.forEach((pos, index) => {
                     let cell = this.grid[pos.r][pos.c];
                     cell.isHole = false;
-                    cell.value = index + 1;
+                    cell.value = index + 1; // Correct solution value (kept for debugging or hints if needed)
                     cell.isPath = true;
+                    cell.userValue = null; // Value filled by user
                     
                     let shouldHide = false;
                     
@@ -146,12 +147,12 @@ class NumberMaze {
                     }
                     
                     if (shouldHide) {
-                        cell.isHidden = true;
-                        cell.isFixed = false; // Player can fill this
+                        cell.isAnchor = false; // Player needs to fill this
+                        cell.isHidden = true;  // Visually hidden initially
                         consecutiveHidden++;
                     } else {
+                        cell.isAnchor = true;  // Fixed number provided by game
                         cell.isHidden = false;
-                        cell.isFixed = true; // Fixed hint
                         consecutiveHidden = 0;
                     }
                 });
@@ -234,22 +235,27 @@ class NumberMaze {
                 if (cellData.isHole) {
                     cellEl.classList.add('empty');
                 } else {
-                    // Only show text if not hidden
-                    if (!cellData.isHidden) {
+                    // Logic for showing numbers
+                    if (cellData.isAnchor) {
+                        // Anchors always show their original value
                         cellEl.textContent = cellData.value;
+                        cellEl.classList.add('anchor'); // Optional styling for anchors
                     } else {
-                        cellEl.classList.add('hidden-value');
+                        // Non-anchors show user value if present
+                        if (cellData.userValue) {
+                            cellEl.textContent = cellData.userValue;
+                            cellEl.classList.remove('hidden-value');
+                        } else {
+                            cellEl.classList.add('hidden-value');
+                        }
                     }
                     
-                    // Keep active/last-active classes if needed (will be handled by redraw logic usually, 
-                    // but here we are rebuilding. Active cells should always be visible)
+                    // Active styling
                     if (this.activeCells.some(ac => ac.r === r && ac.c === c)) {
                          cellEl.classList.add('active');
-                         cellEl.textContent = cellData.value; // Reveal if active
-                         cellEl.classList.remove('hidden-value');
                     }
                     
-                    // Check if it is the last active one
+                    // Last active styling
                     if (this.lastPos && this.lastPos.r === r && this.lastPos.c === c) {
                         cellEl.classList.add('last-active');
                     }
@@ -273,15 +279,15 @@ class NumberMaze {
         
         if (el.classList.contains('active')) return; // Already selected
         
-        let val = this.grid[r][c].value;
+        let cellData = this.grid[r][c];
+        let nextVal = this.currentStep + 1;
         
         // Start logic
         if (this.currentStep === 0) {
-            if (val === 1) {
+            if (cellData.isAnchor && cellData.value === 1) {
                 this.activateCell(el, r, c, 1);
             } else {
                 // Wrong number at start
-                // Do NOT reveal if wrong
                 this.showError(el);
                 this.updateStatus("必须从 1 开始！", true);
             }
@@ -289,22 +295,27 @@ class NumberMaze {
         }
         
         // Continue logic
-        if (val === this.currentStep + 1) {
-            if (this.isAdjacent(r, c, this.lastPos.r, this.lastPos.c)) {
-                // Correct move!
-                this.grid[r][c].isHidden = false; // Reveal it
-                el.textContent = val;
-                el.classList.remove('hidden-value');
-                this.activateCell(el, r, c, val);
+        if (this.isAdjacent(r, c, this.lastPos.r, this.lastPos.c)) {
+            if (cellData.isAnchor) {
+                // If it's an anchor (fixed number), it MUST match the next step
+                if (cellData.value === nextVal) {
+                    this.activateCell(el, r, c, nextVal);
+                } else {
+                    this.showError(el);
+                    this.updateStatus(`错误：这个格子是 ${cellData.value}，你需要连到 ${nextVal}`, true);
+                }
             } else {
-                this.showError(el);
-                this.updateStatus("只能连接相邻的格子！", true);
+                // If it's not an anchor (hidden/empty), player can fill it with nextVal
+                // We DON'T check if it matches the generated path. Player makes their own path.
+                cellData.userValue = nextVal;
+                cellData.isHidden = false;
+                el.textContent = nextVal;
+                el.classList.remove('hidden-value');
+                this.activateCell(el, r, c, nextVal);
             }
         } else {
-             // Wrong number
-             // Do NOT reveal if wrong
             this.showError(el);
-            this.updateStatus(`错误：下一个数字应该是 ${this.currentStep + 1}`, true);
+            this.updateStatus("只能连接相邻的格子！", true);
         }
     }
     
@@ -339,6 +350,15 @@ class NumberMaze {
         // Remove current
         let current = this.activeCells.pop();
         current.el.classList.remove('active', 'last-active');
+        
+        // If it was a user-filled cell (not anchor), reset it
+        let cellData = this.grid[current.r][current.c];
+        if (!cellData.isAnchor) {
+            cellData.userValue = null;
+            cellData.isHidden = true;
+            current.el.textContent = '';
+            current.el.classList.add('hidden-value');
+        }
         
         if (this.activeCells.length > 0) {
             // Restore previous
