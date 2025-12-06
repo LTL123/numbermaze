@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字迷宫</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>数字迷宫</h1>
+        <p>规则：从 1 开始，连接相邻（8个方向）的数字，按顺序直到最大数字。</p>
+        <div class="controls">
+            <select id="difficulty-select">
+                <option value="easy">简单 (1-40)</option>
+                <option value="medium" selected>中等 (1-60)</option>
+                <option value="hard">困难 (1-100)</option>
+            </select>
+            <button id="restart-btn">重新开始</button>
+            <span id="status">请点击 1 开始</span>
+        </div>
+        <div id="game-board" class="board"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
