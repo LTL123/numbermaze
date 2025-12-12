@@ -269,17 +269,32 @@ class NumberMaze {
     }
 
     handleCellClick(r, c, el) {
-        // Undo logic: if clicking the last active cell (and it's not the only one)
-        if (el.classList.contains('last-active')) {
-            if (this.currentStep > 0) {
-                this.undoLastStep();
+        let cellData = this.grid[r][c];
+        
+        // Undo/Rewind logic
+        if (el.classList.contains('active')) {
+            let clickedVal = cellData.isAnchor ? cellData.value : cellData.userValue;
+            
+            // If clicking the current last step, do nothing (or we could confirm restart?)
+            if (clickedVal === this.currentStep) {
+                return;
+            }
+            
+            // If clicking a previous step, confirm rewind
+            if (clickedVal < this.currentStep) {
+                // Use a small timeout to let the click event finish visually
+                setTimeout(() => {
+                    if (confirm(`确定要回退到数字 ${clickedVal} 吗？`)) {
+                        while (this.currentStep > clickedVal) {
+                            this.undoLastStep();
+                        }
+                    }
+                }, 10);
+                return;
             }
             return;
         }
         
-        if (el.classList.contains('active')) return; // Already selected
-        
-        let cellData = this.grid[r][c];
         let nextVal = this.currentStep + 1;
         
         // Start logic
